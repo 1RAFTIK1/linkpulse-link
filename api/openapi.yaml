@@ -108,6 +108,10 @@ components:
     Link:
       type: object
       properties:
+        id:
+          type: string
+          example: "334470686728781824"
+          description: Snowflake ID строкой (int64 не влезает в JS Number); используется дашбордом для подписки на live-клики
         short_code: { type: string, example: "8M0kX" }
         short_url: { type: string, format: uri, example: "http://localhost:8080/8M0kX" }
         original_url: { type: string, format: uri }
