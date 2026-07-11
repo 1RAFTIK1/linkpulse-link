@@ -1,0 +1,35 @@
+# Копия общего шаблона из linkpulse-infra/.golangci.yml (спека §11).
+# Формат — schema v2 (golangci-lint 2.x).
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  # default: standard включает базовый набор: errcheck, govet, ineffassign,
+  # staticcheck (в т.ч. бывший gosimple), unused — ровно то, что в спеке.
+  default: standard
+  enable:
+    - bodyclose     # незакрытый resp.Body (критично для вызовов GitHub API в Auth)
+    - noctx         # HTTP/DB-вызовы обязаны принимать context.Context
+    - sqlclosecheck # закрытие *sql.Rows / *sql.Stmt
+  exclusions:
+    generated: lax
+    rules:
+      # В тестах допускаем HTTP-запросы без context, незакрытые тела ответов
+      # и непроверяемые defer Close() — стандартная тестовая идиома.
+      - path: _test\.go
+        linters:
+          - bodyclose
+          - noctx
+          - errcheck
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      # Импорты проекта отделяются в свою группу.
+      local-prefixes:
+        - github.com/1RAFTIK1

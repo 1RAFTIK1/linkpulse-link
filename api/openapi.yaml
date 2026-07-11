@@ -1,0 +1,132 @@
+openapi: 3.1.0
+info:
+  title: LinkPulse Link Service API
+  version: 0.1.0
+  description: |
+    REST API коротких ссылок: создание, листинг, редирект.
+
+    Авторизация: в фазе 2 — заглушка (все запросы от stub-пользователя).
+    С фазы 5 защищённые endpoint'ы потребуют `Authorization: Bearer <JWT>`.
+servers:
+  - url: http://localhost:8080
+
+paths:
+  /api/v1/links:
+    post:
+      summary: Создать короткую ссылку
+      operationId: createLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLinkRequest"
+      responses:
+        "201":
+          description: Ссылка создана
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Link"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/Internal"
+    get:
+      summary: Ссылки текущего пользователя
+      operationId: listLinks
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20, maximum: 100 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        "200":
+          description: Список ссылок (свежие первыми)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Link"
+        "500":
+          $ref: "#/components/responses/Internal"
+
+  /{code}:
+    get:
+      summary: Редирект по короткому коду
+      operationId: redirect
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: { type: string }
+          description: base62-код ссылки
+      responses:
+        "302":
+          description: Редирект на original_url (заголовок Location)
+        "404":
+          description: Код не найден
+        "410":
+          description: Срок действия ссылки истёк
+        "500":
+          $ref: "#/components/responses/Internal"
+
+  /healthz:
+    get:
+      summary: Здоровье сервиса и зависимостей
+      operationId: healthz
+      responses:
+        "200":
+          description: Все зависимости отвечают
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { type: string }
+                example: { postgres: ok, redis: ok }
+        "503":
+          description: Какая-то зависимость не отвечает
+
+components:
+  schemas:
+    CreateLinkRequest:
+      type: object
+      required: [original_url]
+      properties:
+        original_url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: Только http/https; внутренние адреса отклоняются
+        expires_at:
+          type: string
+          format: date-time
+          description: Опционально; должен быть в будущем
+    Link:
+      type: object
+      properties:
+        short_code: { type: string, example: "8M0kX" }
+        short_url: { type: string, format: uri, example: "http://localhost:8080/8M0kX" }
+        original_url: { type: string, format: uri }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+  responses:
+    BadRequest:
+      description: Невалидный запрос
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Internal:
+      description: Внутренняя ошибка
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
