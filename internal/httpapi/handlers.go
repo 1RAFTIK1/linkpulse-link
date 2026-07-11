@@ -46,6 +46,9 @@ type createLinkRequest struct {
 }
 
 type linkResponse struct {
+	// ID — строкой: Snowflake int64 не влезает в JS Number без потери точности.
+	// Нужен фронтенду для подписки на live-клики (subscribe по link_id).
+	ID          string     `json:"id"`
 	ShortCode   string     `json:"short_code"`
 	ShortURL    string     `json:"short_url"`
 	OriginalURL string     `json:"original_url"`
@@ -59,6 +62,7 @@ type errorResponse struct {
 
 func (h *Handlers) toResponse(l *link.Link) linkResponse {
 	return linkResponse{
+		ID:          strconv.FormatInt(l.ID, 10),
 		ShortCode:   l.ShortCode,
 		ShortURL:    h.svc.ShortURL(l.ShortCode),
 		OriginalURL: l.OriginalURL,
