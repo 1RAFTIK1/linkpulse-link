@@ -107,14 +107,17 @@ jobs:
           path: linkpulse-contracts
 
       # Контекст — родительская папка (см. комментарий в Dockerfile).
+      - name: Compute lowercase image name
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
       - name: Build image
-        run: docker build -f linkpulse-link/Dockerfile -t ghcr.io/${{ github.repository }}:${{ github.sha }} .
+        run: docker build -f linkpulse-link/Dockerfile -t ${{ env.IMAGE }}:${{ github.sha }} .
 
       # Скан образа на уязвимости; HIGH/CRITICAL валят сборку.
       - name: Trivy scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          image-ref: ${{ env.IMAGE }}:${{ github.sha }}
           format: table
           exit-code: "1"
           severity: HIGH,CRITICAL
@@ -131,6 +134,6 @@ jobs:
       - name: Push image
         if: github.ref == 'refs/heads/main'
         run: |
-          docker tag ghcr.io/${{ github.repository }}:${{ github.sha }} ghcr.io/${{ github.repository }}:latest
-          docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
-          docker push ghcr.io/${{ github.repository }}:latest
+          docker tag ${{ env.IMAGE }}:${{ github.sha }} ${{ env.IMAGE }}:latest
+          docker push ${{ env.IMAGE }}:${{ github.sha }}
+          docker push ${{ env.IMAGE }}:latest
