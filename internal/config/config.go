@@ -35,6 +35,10 @@ type Config struct {
 
 	IPHashSalt  string // соль sha256(salt+ip); в проде — секрет
 	GeoIPDBPath string // путь к GeoLite2-Country.mmdb; "" = страна не резолвится
+
+	// AuthAddr — gRPC-адрес Auth service. Пустой = заглушка авторизации
+	// (dev-режим без Auth; сервис громко предупреждает в лог).
+	AuthAddr string
 }
 
 // Load читает и валидирует конфиг. Возвращает агрегированную ошибку по всем
@@ -55,6 +59,7 @@ func Load() (Config, error) {
 		KafkaTopic:      getEnv("KAFKA_TOPIC", "link-clicks"),
 		IPHashSalt:      getEnv("IP_HASH_SALT", "dev-salt-not-secret"),
 		GeoIPDBPath:     os.Getenv("GEOIP_DB_PATH"),
+		AuthAddr:        os.Getenv("AUTH_ADDR"),
 	}
 
 	if cfg.PostgresDSN == "" {

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -99,12 +100,48 @@ func Recover(log *slog.Logger) func(http.Handler) http.Handler {
 	}
 }
 
-// StubAuth — заглушка авторизации фазы 2 (спека §13, фаза 2): кладёт в context
-// фиксированный user_id, чтобы не блокироваться на Auth service. В фазе 5
-// заменяется на настоящую проверку JWT через gRPC ValidateToken.
+// StubAuth — заглушка авторизации фазы 2 (спека §13): кладёт в context
+// фиксированный user_id. Осталась как фолбэк для локальной разработки
+// без Auth service (AUTH_ADDR пуст); в полном стеке работает BearerAuth.
 func StubAuth(userID string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := context.WithValue(r.Context(), ctxKeyUserID, userID)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// TokenValidator проверяет Bearer-токен; в проде — gRPC ValidateToken к Auth
+// service (спека §5: защищённые endpoint'ы ходят централизованно).
+type TokenValidator interface {
+	Validate(ctx context.Context, token string) (userID string, valid bool, err error)
+}
+
+// BearerAuth — настоящая авторизация фазы 5: Authorization: Bearer <jwt> →
+// ValidateToken → user_id в context. 401 на отсутствующий/невалидный токен,
+// 503 если Auth недоступен (клиент может повторить — это не его вина).
+func BearerAuth(v TokenValidator, log *slog.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+			if !ok || token == "" {
+				writeError(w, http.StatusUnauthorized, "требуется Bearer-токен")
+				return
+			}
+
+			userID, valid, err := v.Validate(r.Context(), token)
+			if err != nil {
+				log.ErrorContext(r.Context(), "auth service недоступен",
+					"error", err, "request_id", RequestIDFrom(r.Context()))
+				writeError(w, http.StatusServiceUnavailable, "auth временно недоступен")
+				return
+			}
+			if !valid {
+				writeError(w, http.StatusUnauthorized, "невалидный токен")
+				return
+			}
+
 			ctx := context.WithValue(r.Context(), ctxKeyUserID, userID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})

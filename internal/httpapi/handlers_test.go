@@ -67,7 +67,7 @@ func newTestServer(t *testing.T) (*httptest.Server, *memRepo) {
 	repo := &memRepo{byCode: map[string]*link.Link{}}
 	svc := link.NewService(repo, &memCache{data: map[string]link.Resolved{}}, &seqIDs{}, "http://short.test", time.Hour, log)
 	// builder/publisher = nil: клики в этих тестах не публикуются.
-	router := NewRouter(NewHandlers(svc, nil, nil, log), log, nil, "test-user")
+	router := NewRouter(NewHandlers(svc, nil, nil, log), log, nil, StubAuth("test-user"))
 	srv := httptest.NewServer(router)
 	t.Cleanup(srv.Close)
 	return srv, repo

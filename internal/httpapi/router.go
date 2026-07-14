@@ -10,14 +10,12 @@ import (
 // С Go 1.22 mux понимает метод и path-параметры в паттерне ("POST /api/v1/links",
 // "GET /{code}") — сторонний роутер не нужен (меньше зависимостей, идиоматичнее).
 //
-// stubUserID — заглушка авторизации фазы 2; в фазе 5 вместо StubAuth встанет
-// middleware с настоящей проверкой JWT.
-func NewRouter(h *Handlers, log *slog.Logger, deps map[string]Pinger, stubUserID string) http.Handler {
+// auth — middleware авторизации: BearerAuth (прод) или StubAuth (dev без Auth).
+// Редирект auth не требует — он публичный по определению.
+func NewRouter(h *Handlers, log *slog.Logger, deps map[string]Pinger, auth func(http.Handler) http.Handler) http.Handler {
 	mux := http.NewServeMux()
 
-	auth := StubAuth(stubUserID)
-
-	// Защищённые endpoint'ы (в фазе 5 — реальный Bearer JWT).
+	// Защищённые endpoint'ы.
 	mux.Handle("POST /api/v1/links", auth(http.HandlerFunc(h.CreateLink)))
 	mux.Handle("GET /api/v1/links", auth(http.HandlerFunc(h.ListLinks)))
 

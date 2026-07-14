@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/1RAFTIK1/linkpulse-link/internal/authclient"
 	"github.com/1RAFTIK1/linkpulse-link/internal/cache"
 	"github.com/1RAFTIK1/linkpulse-link/internal/clicks"
 	"github.com/1RAFTIK1/linkpulse-link/internal/config"
@@ -120,10 +121,30 @@ func run(log *slog.Logger) error {
 		pub = producer
 	}
 	handlers := httpapi.NewHandlers(svc, builder, pub, log)
+
+	// Авторизация: реальная через Auth service, если задан AUTH_ADDR,
+	// иначе — dev-заглушка (фаза 2) с громким предупреждением.
+	authMW := httpapi.StubAuth(stubUserID)
+	if cfg.AuthAddr != "" {
+		authClient, err := authclient.New(cfg.AuthAddr)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err := authClient.Close(); err != nil {
+				log.Warn("закрытие auth-клиента", "error", err)
+			}
+		}()
+		authMW = httpapi.BearerAuth(authClient, log)
+		log.Info("авторизация включена", "auth_addr", cfg.AuthAddr)
+	} else {
+		log.Warn("AUTH_ADDR пуст — авторизация ЗАГЛУШКА, все запросы от " + stubUserID)
+	}
+
 	router := httpapi.NewRouter(handlers, log, map[string]httpapi.Pinger{
 		"postgres": repo,
 		"redis":    rds,
-	}, stubUserID)
+	}, authMW)
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
