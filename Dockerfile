@@ -17,7 +17,7 @@ RUN go mod download
 COPY linkpulse-link/ .
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /out/link ./cmd/link
 
-FROM alpine:3.22
+FROM alpine:3.24
 
 # Не root: принцип наименьших привилегий.
 RUN adduser -D -u 10001 app
