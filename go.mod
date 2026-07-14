@@ -1,6 +1,6 @@
 module github.com/1RAFTIK1/linkpulse-link
 
-go 1.26.1
+go 1.26.5
 
 require (
 	github.com/1RAFTIK1/linkpulse-contracts v0.0.0-00010101000000-000000000000
