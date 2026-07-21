@@ -9,7 +9,7 @@ require (
 	github.com/oschwald/geoip2-golang/v2 v2.2.0
 	github.com/redis/go-redis/v9 v9.21.0
 	github.com/twmb/franz-go v1.21.5
-	google.golang.org/grpc v1.82.0
+	google.golang.org/grpc v1.82.1
 	google.golang.org/protobuf v1.36.11
 )
 
